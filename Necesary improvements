@@ -1,0 +1,132 @@
+Some times comics have more chapters and the /api/comics/[SLUG]/chapter-list
+can become /api/comics/[SLUG]/chapter-list?page=N where to decide N we will onece again do the 3 404's to stop counting
+
+request : GET /api/comics/the-greatest-estate-developer/chapter-list?page=0 HTTP/2
+Host: comick.live
+Sec-Ch-Ua-Platform: "Linux"
+Accept-Language: en-US,en;q=0.9
+Sec-Ch-Ua: "Not=A?Brand";v="24", "Chromium";v="140"
+User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36
+Sec-Ch-Ua-Mobile: ?0
+Accept: */*
+Sec-Fetch-Site: same-origin
+Sec-Fetch-Mode: cors
+Sec-Fetch-Dest: empty
+Referer: https://comick.live/comic/the-greatest-estate-developer
+Accept-Encoding: gzip, deflate, br
+Priority: u=1, i
+
+
+
+_______________-
+its has the same response as the regular chapter list 
+
+
+scoondly we do a lot  of test on non existsnt api endpoints when we actually alerady have the correctt one as shown below : 
+
+://comick.live/api/chapter/HzL8txh
+Downloaded image 45 for chapter 59 (total: 43)
+Image 2 failed (consecutive failures: 3/3): failed to download image: status 404
+Stopping after 3 consecutive failures. Downloaded 0 images.
+[i-raised-the-beast-well] Chapter 78 failed (37/60): no images downloaded for chapter 78
+Downloading chapter 7...
+Trying API endpoint: https://comick.live/api/chapter/HzKu7qj
+Image 0 failed (consecutive failures: 1/3): failed to download image: status 404
+Image 55 failed (consecutive failures: 1/3): failed to download image: status 404
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/IGMfcO1/download
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGLbLKj
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/IGMSh5V/download
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapters/HvKaPM9
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/HzKDMTh/images
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/HzKm0uH/images
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGM3Bnl
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/HzKKeXZ/images
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/HzKRjHd/images
+  Status: 404
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGNZdpp
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/HzLHqJl/images
+Downloaded image 47 for chapter 60 (total: 44)
+  Status: 404
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/IGLPNhp/download
+Image 1 failed (consecutive failures: 2/3): failed to download image: status 404
+Looking for pattern: cdn1.comicknew.pictures/i-raised-the-beast-well/0_77/en/
+Trying escaped pattern 1: cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_77\/en\/
+Found escaped pattern at position 186539
+Context: ...w":690,"name":"image 0","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_77\/en\/92db1c21\/0.jpg","optimized":null},{"h":8265,"w":690,"name":"image 1","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast-...
+Extracted potential shid from JSON: '92db1c21' (length: 8)
+Found valid shid from escaped JSON: 92db1c21
+Starting download for chapter 77...
+Image 56 failed (consecutive failures: 2/3): failed to download image: status 404
+Image 0 failed (consecutive failures: 1/3): failed to download image: status 404
+Looking for pattern: cdn1.comicknew.pictures/i-raised-the-beast-well/0_75/en/
+Trying escaped pattern 1: cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_75\/en\/
+Found escaped pattern at position 186539
+Context: ...w":720,"name":"image 0","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_75\/en\/92db1c21\/0.jpg","optimized":null},{"h":21517,"w":720,"name":"image 1","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast...
+Extracted potential shid from JSON: '92db1c21' (length: 8)
+Found valid shid from escaped JSON: 92db1c21
+Starting download for chapter 75...
+Looking for pattern: cdn1.comicknew.pictures/i-raised-the-beast-well/0_74/en/
+Trying escaped pattern 1: cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_74\/en\/
+Found escaped pattern at position 186539
+Context: ...w":720,"name":"image 0","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_74\/en\/92db1c21\/0.jpg","optimized":null},{"h":19948,"w":720,"name":"image 1","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast...
+Extracted potential shid from JSON: '92db1c21' (length: 8)
+Found valid shid from escaped JSON: 92db1c21
+Starting download for chapter 74...
+Looking for pattern: cdn1.comicknew.pictures/i-raised-the-beast-well/0_73/en/
+Trying escaped pattern 1: cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_73\/en\/
+Found escaped pattern at position 186539
+Context: ...":1000,"name":"image 0","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_73\/en\/92db1c21\/0.jpg","optimized":null},{"h":13903,"w":690,"name":"image 1","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast...
+Extracted potential shid from JSON: '92db1c21' (length: 8)
+Found valid shid from escaped JSON: 92db1c21
+Starting download for chapter 73...
+^XImage 2 failed (consecutive failures: 3/3): failed to download image: status 404
+Stopping after 3 consecutive failures. Downloaded 0 images.
+[i-raised-the-beast-well] Chapter 80 failed (38/60): no images downloaded for chapter 80
+Downloading chapter 8...
+Trying API endpoint: https://comick.live/api/chapter/HzL2Zpx
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapters/HvKAUUr
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGMvyWv
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGNH9Yv
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGNlbjF
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapter/HzLO6BF/images
+  Status: 404
+Trying API endpoint: https://comick.live/api/chapters/HvKzVKr
+Downloaded image 7 for chapter 106 (total: 7)
+  Status: 404
+  Status: 404
+Trying API endpoint: https://comick.live/chapter/YBEBM
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGO38KX
+  Status: 404
+Trying API endpoint: https://comick.live/api/v1/chapter/IGN6dRR
+Image 0 failed (consecutive failures: 1/3): failed to download image: status 404
+Image 2 failed (consecutive failures: 3/3): failed to download image: status 404
+Stopping after 3 consecutive failures. Downloaded 0 images.
+[i-raised-the-beast-well] Chapter 76 failed (39/60): no images downloaded for chapter 76
+Downloading chapter 9...
+Trying API endpoint: https://comick.live/api/chapter/XPkrm
+Image 1 failed (consecutive failures: 2/3): failed to download image: status 404
+Image 0 failed (consecutive failures: 1/3): failed to download image: status 404
+Image 0 failed (consecutive failures: 1/3): failed to download image: status 404
+Looking for pattern: cdn1.comicknew.pictures/i-raised-the-beast-well/0_72/en/
+Trying escaped pattern 1: cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_72\/en\/
+Found escaped pattern at position 186539
+Context: ...w":800,"name":"image 0","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast-well\/0_72\/en\/92db1c21\/0.jpg","optimized":null},{"h":20000,"w":800,"name":"image 1","s":null,"url":"https:\/\/cdn1.comicknew.pictures\/i-raised-the-beast...
+Extracted potential shid from JSON: '92db1c21' (length: 8)
