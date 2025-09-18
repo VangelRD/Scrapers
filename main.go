@@ -24,12 +24,12 @@ USAGE:
 MODES:
     -mode=full                Download ALL series from the site(s)
     -mode=slug                Download specific series by slug/id
-    -mode=after-id            Download series with ID >= specified (comick only)
+    -mode=after-id            Download series with ID >= specified ( only)
 
 OPTIONS:
     -site=STRING              Site to scrape () [REQUIRED]
     -slug=STRING              Series slug/id (required for -mode=slug)
-    -start-id=NUMBER          Starting ID (for -mode=after-id, comick only)
+    -start-id=NUMBER          Starting ID (for -mode=after-id,  only)
     -workers=NUMBER           Concurrent download workers (default: 20)
     -log=STRING               Log level (debug, info, warn, error)
 
@@ -82,16 +82,6 @@ func runMultiSiteScraping(config Config, mode, slug string, startID int) error {
 			case "slug":
 				log.Printf("📖 [%s] Downloading series: %s", site, slug)
 				err = scraper.DownloadBySlug(slug)
-			case "after-id":
-				if site == "comick" {
-					log.Printf("🔢 [%s] Starting download after ID %d...", site, startID)
-					if comickScraper, ok := scraper.(*ComickAdapter); ok {
-						err = comickScraper.DownloadAfterID(startID)
-					}
-				} else {
-					log.Printf("⚠️  [%s] Skipping after-id mode (not supported)", site)
-					return // Skip this adapter
-				}
 			}
 
 			if err != nil {
@@ -130,7 +120,7 @@ func main() {
 		site     = flag.String("site", "", "Site to scrape (all)")
 		mode     = flag.String("mode", "", "Mode: full, slug, or after-id")
 		slug     = flag.String("slug", "", "Series slug/id")
-		startID  = flag.Int("start-id", 0, "Starting ID (comick only)")
+		startID  = flag.Int("start-id", 0, "Starting ID ( only)")
 		workers  = flag.Int("workers", 20, "Concurrent workers (1-50)")
 		logLevel = flag.String("log", "info", "Log level")
 		help     = flag.Bool("h", false, "Show help")
@@ -210,16 +200,7 @@ func main() {
 		}
 		log.Printf("Downloading %s from %s...", *slug, *site)
 		err = scraper.DownloadBySlug(*slug)
-	case "after-id":
-		if *site != "comick" {
-			log.Fatal("-mode=after-id is only supported for comick site")
-		}
-		if *startID <= 0 {
-			log.Fatal("Please provide a valid start ID with -start-id=123")
-		}
-		if comickScraper, ok := scraper.(*ComickAdapter); ok {
-			err = comickScraper.DownloadAfterID(*startID)
-		}
+
 	default:
 		log.Fatalf("Unknown mode: %s", *mode)
 	}
