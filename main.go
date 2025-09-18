@@ -14,8 +14,8 @@ func printUsage() {
 	fmt.Printf(`Universal Manga/Manhwa Scraper - Multi-Site Edition
 
 SUPPORTED SITES:
-    - comick.live (comick)
-    - asuracomic.net (asura)
+    
+	- Your Adapter's
     - ALL SITES SIMULTANEOUSLY (all)
 
 USAGE:
@@ -27,7 +27,7 @@ MODES:
     -mode=after-id            Download series with ID >= specified (comick only)
 
 OPTIONS:
-    -site=STRING              Site to scrape (comick, asura, all) [REQUIRED]
+    -site=STRING              Site to scrape () [REQUIRED]
     -slug=STRING              Series slug/id (required for -mode=slug)
     -start-id=NUMBER          Starting ID (for -mode=after-id, comick only)
     -workers=NUMBER           Concurrent download workers (default: 20)
@@ -35,10 +35,10 @@ OPTIONS:
 
 EXAMPLES:
     # Single site scraping
-    ./scraper -site=comick -mode=slug -slug=solo-leveling
-    ./scraper -site=asura -mode=slug -slug=reaper-of-the-drifting-moon-4e28152d
-    ./scraper -site=comick -mode=full -workers=40
-    ./scraper -site=asura -mode=full -workers=30
+    ./scraper -site= -mode=slug -slug=solo-leveling
+    ./scraper -site= -mode=slug -slug=reaper-of-the-drifting-moon-4e28152d
+    ./scraper -site= -mode=full -workers=40
+    ./scraper -site= -mode=full -workers=30
     
     # Multi-site scraping (CONCURRENT!)
     ./scraper -site=all -mode=full -workers=40
@@ -61,10 +61,7 @@ func runMultiSiteScraping(config Config, mode, slug string, startID int) error {
 	log.Println("🚀 Starting concurrent multi-site scraping...")
 
 	// Create all adapters
-	adapters := map[string]SiteScraper{
-		"comick": NewComickAdapter(config),
-		"asura":  NewAsuraAdapter(config),
-	}
+	adapters := map[string]SiteScraper{}
 
 	var wg sync.WaitGroup
 	errorChan := make(chan error, len(adapters))
@@ -130,7 +127,7 @@ func runMultiSiteScraping(config Config, mode, slug string, startID int) error {
 
 func main() {
 	var (
-		site     = flag.String("site", "", "Site to scrape (comick, asura, all)")
+		site     = flag.String("site", "", "Site to scrape (all)")
 		mode     = flag.String("mode", "", "Mode: full, slug, or after-id")
 		slug     = flag.String("slug", "", "Series slug/id")
 		startID  = flag.Int("start-id", 0, "Starting ID (comick only)")
@@ -197,14 +194,8 @@ func main() {
 	var scraper SiteScraper
 
 	switch *site {
-	case "comick":
-		scraper = NewComickAdapter(config)
-		log.Println("Initialized Comick.live scraper")
-	case "asura":
-		scraper = NewAsuraAdapter(config)
-		log.Println("Initialized AsuraComic.net scraper")
 	default:
-		log.Fatalf("Unknown site: %s (supported: comick, asura, all)", *site)
+		log.Fatalf("Unknown site: %s (supported: , all)", *site)
 	}
 
 	// Execute based on mode

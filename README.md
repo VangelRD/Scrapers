@@ -1,354 +1,363 @@
-# Universal Manga/Manhwa Scraper
+# Universal Scraper Framework (Go)
 
-A high-performance, modular Go scraper supporting multiple manga/manhwa sites with dedicated adapters and comprehensive documentation.
+A modular, high-performance scraping framework in Go. This repository provides the core interfaces, concurrency primitives, and utilities to build and run site-specific adapters safely and responsibly.
 
 ## 🏗️ Project Structure
 
 ```
 /
-├── 📁 adapters/              # Organized adapter documentation
-│   ├── 📁 comick/           # Comick.live adapter docs
-│   │   ├── comick_adapter.go  # (source copy)
-│   │   └── README.md         # Detailed Comick documentation
-│   └── 📁 asura/            # AsuraComic.net adapter docs  
-│       ├── asura_adapter.go   # (source copy)
-│       └── README.md         # Detailed Asura documentation
 ├── 🔧 Core Files
 │   ├── main.go              # CLI interface and configuration
-│   ├── interfaces.go        # Site scraper interfaces
-│   ├── types.go             # Data structures and config
-│   ├── utils.go             # Utility functions and logging
+│   ├── interfaces.go        # Adapter interfaces (SiteScraper, Fetcher)
+│   ├── types.go             # Config types and WorkerPool
+│   ├── utils.go             # Logging, file/io helpers, headers
 │   ├── fetcher.go           # HTTP client abstraction
-│   ├── comick_adapter.go    # Comick.live implementation
-│   ├── asura_adapter.go     # AsuraComic.net implementation
 │   ├── build.sh             # Build script
 │   ├── go.mod               # Go module definition
 │   └── README.md            # This file
 └── 📦 Generated
-    └── scraper              # Compiled binary
+    └── scraper              # Compiled binary (ignored in VCS)
 ```
 
 ## 🚀 Quick Start
 
 ### Build
 ```bash
-# Automated build (recommended)
 chmod +x build.sh
 ./build.sh
-
-# Manual build
+# or
 go build -o scraper *.go
 ```
 
-### Basic Usage
+### CLI Overview
 ```bash
-# Get help
 ./scraper -h
+```
+Flags are site-agnostic. Concrete sites are added by implementing adapters and registering them in `main.go`.
 
-# Single site downloads
-./scraper -site=comick -mode=slug -slug=solo-leveling
-./scraper -site=asura -mode=slug -slug=reaper-of-the-drifting-moon-4e28152d
+- `-site=STRING`          Identifier for a registered adapter (required)
+- `-mode=STRING`          `full` or `slug` (adapter-defined semantics)
+- `-slug=STRING`          Series identifier for slug mode
+- `-workers=NUMBER`       Concurrent worker limit (1-50)
+- `-log=STRING`           Log level: debug, info, warn, error
 
-# Multi-site concurrent downloads (NEW!)
-./scraper -site=all -mode=slug -slug=solo-leveling
-./scraper -site=all -mode=full -workers=40
+## 🎯 Design Goals
 
-# Bulk downloads  
-./scraper -site=comick -mode=full -workers=40
-./scraper -site=asura -mode=full -workers=30
+- **Safety first**: Respect Terms of Service, `robots.txt`, and rate limits.
+- **Performance**: Streamed downloads, bounded concurrency, targeted retries.
+- **Modularity**: Clean interfaces and swappable components.
+- **Maintainability**: Clear separation of discovery, parsing, and downloading.
+
+## 🔌 Adapter Architecture
+
+Adapters implement `SiteScraper` from `interfaces.go`:
+
+```go
+// interfaces.go
+// SiteScraper defines the interface that all site adapters must implement
+type SiteScraper interface {
+    // Core download methods
+    DownloadAll() error
+    DownloadBySlug(slug string) error
+
+    // Site identification
+    GetSiteName() string
+}
 ```
 
-## 🚀 **NEW: Concurrent Multi-Site Scraping**
+Helper abstractions are provided:
+- `Fetcher` interface to encapsulate HTTP requests (see `fetcher.go`)
+- `Config` for timeouts, concurrency, retries (see `types.go`)
+- `WorkerPool` for bounded concurrency (see `types.go`)
+- Utility helpers for logging, dirs, and file downloads (see `utils.go`)
 
-The scraper now supports **simultaneous downloads from all supported sites**! Use `-site=all` to scrape from Comick and AsuraComic concurrently.
+## 🧩 How to Build an Adapter (Detailed Guide)
 
-### 🌟 **Multi-Site Benefits:**
-- ⚡ **2x Speed**: Download from both sites simultaneously
-- 🔄 **Parallel Processing**: Each site runs in its own goroutine
-- 📊 **Progress Tracking**: Real-time status for each site
-- 🛡️ **Error Isolation**: One site failing doesn't stop the other
-- 📝 **Comprehensive Logging**: Per-site success/failure reporting
+This is a pragmatic, repeatable process to create a robust, polite, and maintainable adapter.
 
-### 💡 **Multi-Site Examples:**
+### 1) Create your adapter file
 ```bash
-# Download the same series from both sites simultaneously
-./scraper -site=all -mode=slug -slug=solo-leveling
-
-# Full download from ALL sites (use with caution!)
-./scraper -site=all -mode=full -workers=40
-
-# Comick after-id + Asura full (after-id only applies to Comick)
-./scraper -site=all -mode=after-id -start-id=1000
+# Example
+touch newsite_adapter.go
 ```
 
-### 📋 **Multi-Site Behavior:**
-- **`-mode=slug`**: Downloads the same slug from both sites
-- **`-mode=full`**: Downloads entire databases from both sites
-- **`-mode=after-id`**: Downloads after ID from Comick + full from Asura
-- **Error handling**: Sites that fail are logged but don't stop others
-- **Output**: Downloads are organized by series name (may have duplicates if both sites have the same series)
-
-## 📊 Supported Sites
-
-| Site | Adapter | Base URL | Type | Features | Documentation |
-|------|---------|----------|------|----------|---------------|
-| **Comick** | `comick` | comick.live | API-based | Hash discovery, Pagination, High concurrency | [📖 Details](adapters/comick/README.md) |
-| **AsuraComic** | `asura` | asuracomic.net | HTML parsing | Sequential chapters, CDN optimization | [📖 Details](adapters/asura/README.md) |
-| **🌐 Multi-Site** | `all` | All supported | Concurrent | **SIMULTANEOUS SCRAPING** from all sites | 🚀 **NEW!** |
-
-## 🔧 Configuration Options
-
-| Option | Description | Values | Default |
-|--------|-------------|--------|---------|
-| `-site` | Site to scrape | `comick`, `asura`, **`all`** | **Required** |
-| `-mode` | Download mode | `full`, `slug`, `after-id` | **Required** |
-| `-slug` | Series identifier | Site-specific slug | For slug mode |
-| `-start-id` | Starting ID | Number ≥ 1 | Comick only |
-| `-workers` | Concurrent workers | 1-50 | 20 |
-| `-log` | Log level | `debug`, `info`, `warn`, `error` | `info` |
-
-## 📁 Output Structure
-
-All downloads are organized in a consistent structure:
-
-```
-downloads/
-├── solo-leveling/              # Series folder (slug-based)
-│   ├── cover.webp             # Cover image
-│   ├── chapter_1/             # Chapter folders (1-based)
-│   │   ├── 000.webp          # Page images (0-based)
-│   │   ├── 001.webp
-│   │   └── ...
-│   ├── chapter_2/
-│   └── ...
-└── another-series/
-    └── ...
-```
-
-## 🌟 Key Features
-
-### 🏛️ **Modular Architecture**
-- **Clean interfaces**: Common `SiteScraper` interface for all adapters
-- **Site-specific optimizations**: Each adapter handles site quirks perfectly
-- **Easy extensibility**: Add new sites without affecting existing ones
-- **Comprehensive documentation**: Detailed docs for each adapter
-
-### ⚡ **High Performance**
-- **Parallel processing**: Concurrent downloads at series, chapter, and image levels
-- **Smart worker pools**: Configurable concurrency for optimal performance
-- **Rate limiting**: Server-friendly request patterns
-- **Automatic retry**: Exponential backoff for failed requests
-
-### 🛡️ **Robust Error Handling**
-- **Graceful failures**: Continues processing when individual items fail
-- **Smart termination**: Stops after consecutive 404s
-- **Comprehensive logging**: Debug, info, warn, and error levels
-- **Recovery strategies**: Built-in retry logic with exponential backoff
-
-### 🔍 **Site-Specific Optimizations**
-
-#### Comick.live (`-site=comick`)
-- ✅ **API-based**: Fast and reliable data access
-- ✅ **Advanced hash discovery**: Multiple fallback strategies
-- ✅ **Pagination support**: Handles large chapter lists
-- ✅ **Bulk operations**: `after-id` mode for selective downloads
-
-#### AsuraComic.net (`-site=asura`)  
-- ✅ **HTML parsing**: Robust pattern matching
-- ✅ **CDN optimization**: Direct access to image CDN
-- ✅ **Sequential discovery**: Smart chapter enumeration
-- ✅ **Cover extraction**: Automatic cover image downloading
-
-## 📚 Detailed Documentation
-
-Each adapter has comprehensive documentation covering:
-
-### 🔷 [Comick.live Adapter](adapters/comick/README.md)
-- API endpoints and response formats
-- Hash discovery algorithms  
-- Performance benchmarks
-- Troubleshooting guide
-- Technical implementation details
-
-### 🔷 [AsuraComic.net Adapter](adapters/asura/README.md)
-- HTML parsing strategies
-- URL pattern matching
-- Site-specific optimizations
-- Error handling approaches
-- Development notes
-
-## ⚡ Performance Guide
-
-### Recommended Configurations
-
-| Use Case | Command | Workers | Notes |
-|----------|---------|---------|-------|
-| **Single Series** | `./scraper -site=comick -mode=slug -slug=series` | 25-30 | Fast, reliable |
-| **🌐 Multi-Site Series** | `./scraper -site=all -mode=slug -slug=series` | **30-35** | **2x speed!** |
-| **Bulk Download** | `./scraper -site=comick -mode=after-id -start-id=1000` | 35-40 | High throughput |
-| **🌐 Multi-Site Full** | `./scraper -site=all -mode=full` | **35-40** | **Maximum throughput** |
-| **Full Site** | `./scraper -site=asura -mode=full` | 25-30 | Respectful load |
-| **Conservative** | `./scraper -site=* -mode=* -workers=15` | 15 | Slow connections |
-
-### Performance Characteristics
-
-| Site | Series Discovery | Chapter Processing | Image Downloads | Avg Speed |
-|------|-----------------|-------------------|-----------------|-----------|
-| **Comick** | 100 pages parallel | API-based, fast | Hash discovery | ⭐⭐⭐⭐⭐ |
-| **Asura** | 20 pages parallel | Sequential, reliable | Direct CDN | ⭐⭐⭐⭐ |
-| **🌐 Multi-Site** | **CONCURRENT** | **SIMULTANEOUS** | **PARALLEL** | **⭐⭐⭐⭐⭐⭐** |
-
-## 🔨 Adding New Sites
-
-The modular architecture makes adding new sites straightforward:
-
-### 1. Create Adapter Structure
-```bash
-mkdir -p adapters/newsite
-```
-
-### 2. Implement the Interface
 ```go
 // newsite_adapter.go
+package main
+
 type NewSiteAdapter struct {
-    // ... implementation
+    config      Config
+    fetcher     Fetcher
+    baseURL     string
+    seriesPool  *WorkerPool
+    chapterPool *WorkerPool
+    imagePool   *WorkerPool
 }
 
-func (n *NewSiteAdapter) DownloadAll() error { /* ... */ }
-func (n *NewSiteAdapter) DownloadBySlug(slug string) error { /* ... */ }
+func NewNewSiteAdapter(config Config) *NewSiteAdapter {
+    return &NewSiteAdapter{
+        config:      config,
+        fetcher:     NewHTTPFetcher(config.HTTPTimeout),
+        baseURL:     "https://example.com",
+        seriesPool:  NewWorkerPool(config.MaxSeriesWorkers),
+        chapterPool: NewWorkerPool(config.MaxChapterWorkers),
+        imagePool:   NewWorkerPool(config.MaxImageWorkers),
+    }
+}
+
 func (n *NewSiteAdapter) GetSiteName() string { return "newsite" }
+func (n *NewSiteAdapter) DownloadAll() error  { /* implement */ return nil }
+func (n *NewSiteAdapter) DownloadBySlug(slug string) error { /* implement */ return nil }
 ```
 
-### 3. Register in Main
+### 2) Wire your adapter into `main.go`
+
+Adapters live in the same Go package (`package main`), so no imports are needed. Register your adapter in two places:
+
+- **Single-site mode switch** (used when `-site=<yoursite>`):
+
 ```go
-// main.go
+// main.go (excerpt)
+var scraper SiteScraper
+
+switch *site {
 case "newsite":
     scraper = NewNewSiteAdapter(config)
+    log.Println("Initialized newsite scraper")
+// add more cases for other sites
+default:
+    log.Fatalf("Unknown site: %s", *site)
+}
+
+// Execute based on -mode
+globalErr := error(nil)
+switch *mode {
+case "full":
+    globalErr = scraper.DownloadAll()
+case "slug":
+    if *slug == "" {
+        log.Fatal("Please provide a slug with -slug=series-slug")
+    }
+    globalErr = scraper.DownloadBySlug(*slug)
+default:
+    log.Fatalf("Unknown mode: %s", *mode)
+}
+if globalErr != nil { log.Fatalf("Scraping failed: %v", globalErr) }
 ```
 
-### 4. Create Documentation
-```bash
-# adapters/newsite/README.md
-# Detailed adapter documentation
+- **Optional multi-site orchestration** (if you support a mode that runs all adapters concurrently):
+
+```go
+// main.go (optional multi-site function)
+adapters := map[string]SiteScraper{
+    "newsite": NewNewSiteAdapter(config),
+    // add other adapters here
+}
+// iterate this map concurrently and run the same mode/slug against each
 ```
+
+- **CLI help text**: Update the usage banner in `printUsage()` to list your adapter key (e.g., `newsite`).
+
+```go
+// printUsage() (excerpt)
+fmt.Printf(`SUPPORTED SITES:
+    - newsite (newsite)
+`)
+```
+
+- **Validation**: If your adapter supports only a subset of modes, validate early and print a clear error.
+
+```go
+if *mode == "slug" && *slug == "" {
+    log.Fatal("-mode=slug requires -slug=<id>")
+}
+```
+
+### 3) HTTP policy: headers and ethics
+- Use `Fetcher` to issue requests.
+- Use realistic `User-Agent` and `Accept-Language` via `GetCommonHeaders()`.
+- Avoid spoofing browser-only `Sec-*` and `Sec-CH-UA` headers.
+- Honor site policies: Terms of Service and `robots.txt`.
+- Never bypass authentication, CAPTCHAs, paywalls, or protection measures.
+
+#### Minimal header example
+```go
+headers := GetCommonHeaders()
+headers["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+```
+
+### 4) robots.txt and allow-listing
+Fetch and evaluate `robots.txt` before crawling. If disallowed, do not crawl.
+
+```go
+func isAllowedByRobots(baseURL, path string, fetcher Fetcher) bool {
+    robotsURL := strings.TrimRight(baseURL, "/") + "/robots.txt"
+    resp, err := fetcher.Get(robotsURL, GetCommonHeaders())
+    if err != nil || resp.StatusCode != 200 {
+        if resp != nil { resp.Body.Close() }
+        return true // be conservative with false negatives in demos; consider default deny
+    }
+    body, _ := io.ReadAll(resp.Body)
+    resp.Body.Close()
+    // Minimal check: disallow exact path lines. For production, use a proper parser.
+    for _, line := range strings.Split(string(body), "\n") {
+        line = strings.TrimSpace(line)
+        if strings.HasPrefix(strings.ToLower(line), "disallow:") {
+            rule := strings.TrimSpace(strings.TrimPrefix(line, "Disallow:"))
+            if rule != "" && strings.HasPrefix(path, rule) {
+                return false
+            }
+        }
+    }
+    return true
+}
+```
+
+### 5) Concurrency and global rate limiting
+Use `WorkerPool` to bound concurrency per resource type and a global limiter for politeness.
+
+```go
+// Simple token bucket using a ticker
+var globalTokens = make(chan struct{}, 4) // up to 4 requests in flight
+go func() {
+    ticker := time.NewTicker(250 * time.Millisecond) // ~4 req/sec
+    for range ticker.C {
+        select { case globalTokens <- struct{}{}: default: }
+    }
+}()
+
+func acquireGlobal() func() {
+    <-globalTokens
+    return func() {}
+}
+```
+
+Use it around each outbound request.
+
+### 6) Discovery strategies (choose what fits the site)
+- **Static lists**: Follow on-page links (`a[href]`) for series or chapters.
+- **Pagination**: Detect "next" links or page numbers and iterate until exhausted.
+- **API/JSON**: Some sites expose JSON endpoints; prefer official APIs when available.
+- **Sitemaps**: Parse XML sitemaps for content discovery.
+- Avoid blind numeric enumeration; prefer explicit links and manifests.
+
+### 7) Parsing and extraction
+- Prefer robust HTML parsing (e.g., `encoding/xml` for XML, `encoding/json` for JSON). Regex for narrow, well-understood patterns only.
+- Normalize and de-duplicate discovered items (use maps/sets).
+- Validate IDs/URLs (length, allowed characters) before enqueueing.
+
+### 8) Downloads and storage
+- Use `EnsureDir` for directories and sanitize file/dir names.
+- Stream responses to disk with `io.Copy` (already in `DownloadFile`).
+- Avoid loading large files fully into memory.
+
+#### Safe file/dir name helper
+```go
+func safeName(s string) string {
+    s = strings.TrimSpace(s)
+    replacer := strings.NewReplacer("/", "-", "\\", "-", ":", "-")
+    s = replacer.Replace(s)
+    if len(s) == 0 { s = "untitled" }
+    return s
+}
+```
+
+### 9) Retry and backoff (transient vs terminal)
+- Retry transient errors: timeouts, 5xx.
+- Do not retry terminal errors: 401/403/404.
+- Honor `Retry-After` when present.
+
+```go
+func isTransient(status int) bool { return status == 0 || status >= 500 }
+```
+
+### 10) Error handling patterns
+- Return contextual errors (include the URL or resource identifier).
+- Use `LogDebug` for noisy details, `LogInfo` for milestones, `LogWarn` for recoverable issues, `LogError` for failures.
+- Stop on repeated policy violations (403/429).
+
+### 11) Testing your adapter
+- Add a dry-run mode that lists discovered items without downloading.
+- Use `httptest.Server` to simulate site responses for unit/integration tests.
+- Mock `Fetcher` to deterministically test edge cases and retries.
+
+```go
+type FakeFetcher struct{ R *http.Response; E error }
+func (f *FakeFetcher) Get(url string, h map[string]string) (*http.Response, error) { return f.R, f.E }
+```
+
+### 12) Documentation template (recommended)
+Create a short adapter guide in `adapters/<yoursite>/README.md`:
+
+```
+# <Your Site> Adapter
+
+- Base URL: https://example.com
+- Capabilities: discovery (series/chapters), downloads (if permitted), metadata
+- Config hints: workers, timeouts
+- Politeness: robots.txt, request rate, headers
+- Known limitations and troubleshooting tips
+```
+
+
+## 🔧 Configuration
+
+`Config` in `types.go` controls concurrency, timeouts, and retries:
+
+```go
+type Config struct {
+    MaxWorkers        int
+    MaxSeriesWorkers  int
+    MaxChapterWorkers int
+    MaxImageWorkers   int
+    HTTPTimeout       time.Duration
+    MaxRetries        int
+    RetryDelay        time.Duration
+}
+```
+
+Tune these conservatively per site. Many sites will require much lower concurrency and longer timeouts.
+
+## ⚡ Performance Highlights
+
+- **Bounded Concurrency**: `WorkerPool` limits parallel work per stage (series/chapters/images) to prevent overload.
+- **Global Rate Limiting**: Token bucket example to cap overall request rate.
+- **Streamed I/O**: `io.Copy` avoids buffering files in memory for large downloads.
+- **Targeted Retries**: Retries are limited to transient errors with exponential backoff, reducing wasted load.
+- **Backpressure-Friendly**: Acquire/Release patterns ensure upstream stages don’t outpace downstream capacity.
+- **Minimal Dependencies**: Leverages standard library for speed and portability.
+- **Config-Driven**: Tune concurrency and timeouts without code changes.
+
+## 🧱 Modularity Highlights
+
+- **Interface-Driven**: `SiteScraper` and `Fetcher` cleanly decouple core logic from site specifics.
+- **Swappable Fetchers**: Replace HTTP client (e.g., for testing, proxies, caching) without touching adapters.
+- **Composable Pools**: `WorkerPool` primitives are reusable across stages.
+- **Clear Separation**: Discovery, parsing, and downloading are distinct concerns in adapter code.
+- **Adapter Registration**: Adding a site is a local change (new file + switch case in `main.go`).
+- **Testability**: `Fetcher` abstraction enables deterministic unit tests.
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+- Build issues: re-run `./build.sh` or `go build -o scraper *.go`
+- Network issues: lower `-workers`, raise timeouts, and run with `-log=debug`
+- Site blocks: stop immediately on 403/429; respect `Retry-After` and site policies
 
-**Build Problems:**
-```bash
-# Clean build
-rm -f scraper
-./build.sh
-```
+## ⚖️ Legal & Ethical Guidelines
 
-**Network Issues:**
-```bash
-# Reduce workers and enable debug logging
-./scraper -site=comick -mode=slug -slug=test -workers=15 -log=debug
-```
-
-**Site-Specific Issues:**
-- **Comick**: Check [Comick troubleshooting](adapters/comick/README.md#troubleshooting)
-- **Asura**: Check [Asura troubleshooting](adapters/asura/README.md#troubleshooting)
-
-### Finding Series Slugs
-
-#### Comick.live
-- URL: `https://comick.live/comic/solo-leveling`
-- Slug: `solo-leveling`
-
-#### AsuraComic.net  
-- URL: `https://asuracomic.net/series/reaper-of-the-drifting-moon-4e28152d`
-- Slug: `reaper-of-the-drifting-moon-4e28152d` (includes HID)
-
-## 📈 Future Roadmap
-
-### Planned Features
-- [ ] **Database integration** for download tracking
-- [ ] **Resume capability** for interrupted downloads
-- [ ] **Web UI** for management and monitoring
-- [ ] **Docker containerization** for easy deployment
-- [ ] **Advanced filtering** by genre, status, date ranges
-- [ ] **Quality selection** for different image sizes
-
-### Potential New Sites
-- [ ] **MangaDex** adapter
-- [ ] **Webtoons** adapter  
-- [ ] **MangaKakalot** adapter
-- [ ] **Community-requested sites**
-
-## ⚖️ Legal & Ethical Usage
-
-### Guidelines
-- ✅ **Educational purposes** - Learn about web scraping and Go programming
-- ✅ **Personal use** - Download for your own reading
-- ✅ **Respectful scraping** - Built-in rate limiting and server-friendly patterns
-- ✅ **Terms compliance** - Follow each site's terms of service
-
-### Built-in Protections
-- **Rate limiting**: Prevents server overload
-- **Retry logic**: Handles temporary issues gracefully  
-- **Error recovery**: Continues processing despite individual failures
-- **Logging**: Comprehensive debugging without exposing sensitive data
+- Always review and respect a site’s Terms of Service and `robots.txt`.
+- Do not bypass authentication, CAPTCHAs, paywalls, or technical protection measures.
+- Avoid scraping personal data; comply with privacy laws where applicable.
+- Prefer metadata-only adapters when content replication is not permitted.
+- Consult counsel for uncertain use cases. This repository is provided for educational and lawful use.
 
 ## 🤝 Contributing
 
-### Code Quality Standards
-- **Clean architecture**: Modular, testable, maintainable
-- **Comprehensive docs**: Each adapter thoroughly documented
-- **Error handling**: Graceful failure recovery
-- **Performance**: Optimized for speed and efficiency
-
-### Development Setup
-```bash
-# Clone and setup
-git clone <repository>
-cd scraper
-
-# Build and test
-./build.sh
-./scraper -h
-
-# Test adapters
-./scraper -site=comick -mode=slug -slug=test-series -log=debug
-./scraper -site=asura -mode=slug -slug=test-series -log=debug
-```
+- Keep adapters modular and self-contained.
+- Favor clarity and maintainability over cleverness.
+- Provide concise docs for each adapter you add.
+- Ensure polite defaults and safe error handling.
 
 ---
 
-## 🏆 Project Highlights
-
-### 🎯 **Production Ready**
-- Comprehensive error handling and logging
-- Server-friendly rate limiting and retry logic
-- Modular architecture for easy maintenance
-- Extensive documentation for all components
-
-### 🚀 **High Performance**  
-- **🌐 Multi-site concurrent scraping**: Download from all sites simultaneously
-- Parallel processing at all levels
-- Site-specific optimizations
-- Configurable concurrency control
-- Smart resource management
-
-### 📚 **Well Documented**
-- Main project documentation
-- Detailed adapter-specific guides
-- Troubleshooting and performance guides
-- Clear examples and usage patterns
-
-### 🔧 **Extensible Design**
-- Clean interface-based architecture
-- Easy to add new sites
-- Modular components
-- Future-proof design patterns
-
----
-
-**Built with ❤️ for the manga/manhwa community**
-
-*Combining enterprise architecture with bleeding-edge performance*
-
-**🌐 Concurrent Multi-Site** • **⚡ High-Performance** • **📚 Well-Documented** • **🔧 Extensible**
+Built with ❤️ for learning and responsible data access.
