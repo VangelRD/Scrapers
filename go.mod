@@ -1,3 +1,3 @@
-module comick-scraper
+module scraper
 
-go 1.21
+go 1.20

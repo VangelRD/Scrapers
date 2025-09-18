@@ -1,26 +1,42 @@
 #!/bin/bash
 
-echo "Building high-performance comick scraper..."
-
-# Build the scraper
-go build -o comick-scraper *.go
-
-# Make it executable
-chmod +x comick-scraper
-
-echo "Build complete!"
+echo "Building Universal Manga/Manhwa Scraper..."
 echo ""
-echo "Usage examples:"
-echo "  Full download:    ./comick-scraper -mode=full -workers=40"
-echo "  Specific manhwa:  ./comick-scraper -mode=slug -slug=solo-leveling"
-echo "  After ID:         ./comick-scraper -mode=after-id -start-id=1000 -workers=30"
-echo ""
-echo "Performance features:"
-echo "  - Parallel page discovery (100 pages simultaneously)"
-echo "  - Parallel manhwa processing (10 concurrent)"
-echo "  - Parallel chapter processing (5 per manhwa)"
-echo "  - Configurable image download workers (20-50)"
-echo "  - Advanced hash discovery algorithms"
-echo "  - Automatic retry logic with exponential backoff"
-echo "  - Smart pagination support"
-echo ""
+
+# Check for Go installation
+if ! command -v go &> /dev/null; then
+    echo "❌ Go is not installed. Please install Go 1.20+ first."
+    exit 1
+fi
+
+# Clean old build
+rm -f scraper comick-scraper
+
+# Build the application
+echo "Compiling..."
+go build -o scraper *.go
+
+if [ $? -eq 0 ]; then
+    chmod +x scraper
+    echo ""
+    echo "✅ Build successful!"
+    echo ""
+    echo "Supported sites:"
+    echo "  • comick.live  (-site=comick)"
+    echo "  • asuracomic.net (-site=asura)"
+    echo "  • 🌐 ALL SITES SIMULTANEOUSLY (-site=all)"
+    echo ""
+    echo "Quick examples:"
+    echo "  # Single site"
+    echo "  ./scraper -site=comick -mode=slug -slug=solo-leveling"
+    echo "  ./scraper -site=asura -mode=slug -slug=reaper-of-the-drifting-moon-4e28152d"
+    echo "  # Multi-site concurrent scraping (NEW!)"
+    echo "  ./scraper -site=all -mode=slug -slug=solo-leveling"
+    echo "  ./scraper -site=all -mode=full -workers=40"
+    echo ""
+    echo "For help: ./scraper -h"
+else
+    echo ""
+    echo "❌ Build failed! Check error messages above."
+    exit 1
+fi

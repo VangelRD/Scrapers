@@ -1,417 +1,354 @@
-# High-Performance Comick.live Manhwa Scraper
+# Universal Manga/Manhwa Scraper
 
-A **professional-grade** Go scraper featuring enterprise software architecture with maximum performance optimization. Built for downloading manhwas from comick.live with **sub-hour completion times** for full database downloads.
+A high-performance, modular Go scraper supporting multiple manga/manhwa sites with dedicated adapters and comprehensive documentation.
 
-## 🚀 Performance & Architecture
+## 🏗️ Project Structure
 
-### Key Performance Metrics
-- **Target: <1 hour** for complete database download
-- **100 parallel pages** for manhwa discovery (25x faster than sequential)
-- **10 concurrent manhwas** processing simultaneously  
-- **5 parallel chapters** per manhwa
-- **20-50 configurable workers** for image downloads
-- **Advanced hash discovery** with multiple fallback strategies
-- **Smart retry logic** with exponential backoff
-- **Zero technical debt** with clean modular architecture
+```
+/
+├── 📁 adapters/              # Organized adapter documentation
+│   ├── 📁 comick/           # Comick.live adapter docs
+│   │   ├── comick_adapter.go  # (source copy)
+│   │   └── README.md         # Detailed Comick documentation
+│   └── 📁 asura/            # AsuraComic.net adapter docs  
+│       ├── asura_adapter.go   # (source copy)
+│       └── README.md         # Detailed Asura documentation
+├── 🔧 Core Files
+│   ├── main.go              # CLI interface and configuration
+│   ├── interfaces.go        # Site scraper interfaces
+│   ├── types.go             # Data structures and config
+│   ├── utils.go             # Utility functions and logging
+│   ├── fetcher.go           # HTTP client abstraction
+│   ├── comick_adapter.go    # Comick.live implementation
+│   ├── asura_adapter.go     # AsuraComic.net implementation
+│   ├── build.sh             # Build script
+│   ├── go.mod               # Go module definition
+│   └── README.md            # This file
+└── 📦 Generated
+    └── scraper              # Compiled binary
+```
 
-### Enterprise Architecture
-- **Clean interfaces** with dependency injection
-- **Modular design** with strict separation of concerns
-- **Comprehensive error handling** and structured logging
-- **Testable components** with abstracted dependencies
-- **Configurable worker pools** for optimal resource usage
-- **Professional header management** system
-- **Production-ready** error recovery and resilience
+## 🚀 Quick Start
 
-## ✨ Advanced Features
-
-### Smart Discovery Algorithms
-- **Multi-strategy hash extraction** from HTML/JavaScript
-- **Paginated chapter list support** (discovers ALL chapters, not just first page)
-- **HID-based hash guessing** with validation
-- **Pattern matching** for escaped JSON structures
-- **Automatic fallback strategies** when primary methods fail
-- **Hash validation** through actual image download testing
-
-### High-Performance Concurrency
-- **Parallel page fetching**: 25x faster than sequential discovery
-- **Parallel manhwa processing**: Download multiple series simultaneously
-- **Parallel chapter processing**: Process chapters within each manhwa concurrently
-- **Parallel image downloads**: Configurable worker count for optimal speed
-- **Smart rate limiting**: Server-friendly concurrency management
-
-### Production-Ready Features
-- **Automatic retry logic** with exponential backoff
-- **Smart termination** (3 consecutive 404s rule)
-- **Comprehensive logging** with multiple levels (debug, info, warn, error)
-- **Graceful error handling** that doesn't stop the entire process
-- **Memory efficient** streaming downloads
-- **Server-friendly** rate limiting and respectful request patterns
-
-## 📦 Installation & Setup
-
-### Prerequisites
-- Go 1.21 or higher
-- Sufficient disk space (each manhwa can be 100MB-2GB)
-- Stable internet connection
-
-### Quick Setup
+### Build
 ```bash
-# Clone or download the scraper files
-git clone <repository-url>
-cd comick-scraper
-
-# Build using the automated script
+# Automated build (recommended)
 chmod +x build.sh
 ./build.sh
 
-# Or build manually
-go build -o comick-scraper *.go
+# Manual build
+go build -o scraper *.go
 ```
 
-### Verify Installation
+### Basic Usage
 ```bash
-# Check the scraper is working
-./comick-scraper -h
+# Get help
+./scraper -h
 
-# Test with a single chapter
-./comick-scraper -mode=slug -slug=solo-leveling -workers=20 -log=info
+# Single site downloads
+./scraper -site=comick -mode=slug -slug=solo-leveling
+./scraper -site=asura -mode=slug -slug=reaper-of-the-drifting-moon-4e28152d
+
+# Multi-site concurrent downloads (NEW!)
+./scraper -site=all -mode=slug -slug=solo-leveling
+./scraper -site=all -mode=full -workers=40
+
+# Bulk downloads  
+./scraper -site=comick -mode=full -workers=40
+./scraper -site=asura -mode=full -workers=30
 ```
 
-## 🎯 Usage Examples
+## 🚀 **NEW: Concurrent Multi-Site Scraping**
 
-### 1. Download Specific Manhwa
+The scraper now supports **simultaneous downloads from all supported sites**! Use `-site=all` to scrape from Comick and AsuraComic concurrently.
+
+### 🌟 **Multi-Site Benefits:**
+- ⚡ **2x Speed**: Download from both sites simultaneously
+- 🔄 **Parallel Processing**: Each site runs in its own goroutine
+- 📊 **Progress Tracking**: Real-time status for each site
+- 🛡️ **Error Isolation**: One site failing doesn't stop the other
+- 📝 **Comprehensive Logging**: Per-site success/failure reporting
+
+### 💡 **Multi-Site Examples:**
 ```bash
-# Download a single manhwa by slug
-./comick-scraper -mode=slug -slug=solo-leveling
+# Download the same series from both sites simultaneously
+./scraper -site=all -mode=slug -slug=solo-leveling
 
-# With custom worker count for faster downloads
-./comick-scraper -mode=slug -slug=tower-of-god -workers=40
+# Full download from ALL sites (use with caution!)
+./scraper -site=all -mode=full -workers=40
 
-# With debug logging for troubleshooting
-./comick-scraper -mode=slug -slug=one-piece -workers=30 -log=debug
+# Comick after-id + Asura full (after-id only applies to Comick)
+./scraper -site=all -mode=after-id -start-id=1000
 ```
 
-### 2. Download Multiple Manhwas (After ID)
-```bash
-# Download all manhwas with ID >= 1000
-./comick-scraper -mode=after-id -start-id=1000 -workers=30
+### 📋 **Multi-Site Behavior:**
+- **`-mode=slug`**: Downloads the same slug from both sites
+- **`-mode=full`**: Downloads entire databases from both sites
+- **`-mode=after-id`**: Downloads after ID from Comick + full from Asura
+- **Error handling**: Sites that fail are logged but don't stop others
+- **Output**: Downloads are organized by series name (may have duplicates if both sites have the same series)
 
-# For newer manhwas only
-./comick-scraper -mode=after-id -start-id=5000 -workers=50
+## 📊 Supported Sites
 
-# Conservative approach for slower connections
-./comick-scraper -mode=after-id -start-id=2000 -workers=20 -log=info
-```
+| Site | Adapter | Base URL | Type | Features | Documentation |
+|------|---------|----------|------|----------|---------------|
+| **Comick** | `comick` | comick.live | API-based | Hash discovery, Pagination, High concurrency | [📖 Details](adapters/comick/README.md) |
+| **AsuraComic** | `asura` | asuracomic.net | HTML parsing | Sequential chapters, CDN optimization | [📖 Details](adapters/asura/README.md) |
+| **🌐 Multi-Site** | `all` | All supported | Concurrent | **SIMULTANEOUS SCRAPING** from all sites | 🚀 **NEW!** |
 
-### 3. Full Database Download
-```bash
-# Download everything (use with caution - very large!)
-./comick-scraper -mode=full -workers=40
+## 🔧 Configuration Options
 
-# With debug logging for monitoring progress
-./comick-scraper -mode=full -workers=35 -log=debug
-
-# Conservative approach for stability
-./comick-scraper -mode=full -workers=25 -log=info
-```
-
-## ⚙️ Configuration Options
-
-### Worker Configuration
-```bash
-# Conservative (slower, stable)
--workers=15
-
-# Balanced (recommended for most users)
--workers=25
-
-# Aggressive (fastest, requires good connection)
--workers=45
-
-# Maximum (use only with excellent connection)
--workers=50
-```
-
-### Logging Levels
-```bash
-# Minimal output (errors only)
--log=error
-
-# Standard output (default, recommended)
--log=info
-
-# Detailed monitoring (useful for troubleshooting)
--log=debug
-
-# Warnings and errors only
--log=warn
-```
-
-### Performance Tuning
-
-The scraper automatically uses optimized concurrency settings:
-
-| Component | Concurrency Level | Purpose |
-|-----------|------------------|---------|
-| Page Discovery | 100 parallel | Ultra-fast manhwa list fetching |
-| Manhwa Processing | 10 concurrent | Balanced resource usage |
-| Chapter Processing | 5 per manhwa | Prevent server overload |
-| Image Downloads | User configurable | Customizable for connection speed |
+| Option | Description | Values | Default |
+|--------|-------------|--------|---------|
+| `-site` | Site to scrape | `comick`, `asura`, **`all`** | **Required** |
+| `-mode` | Download mode | `full`, `slug`, `after-id` | **Required** |
+| `-slug` | Series identifier | Site-specific slug | For slug mode |
+| `-start-id` | Starting ID | Number ≥ 1 | Comick only |
+| `-workers` | Concurrent workers | 1-50 | 20 |
+| `-log` | Log level | `debug`, `info`, `warn`, `error` | `info` |
 
 ## 📁 Output Structure
 
-Downloads are organized in a clean, hierarchical structure:
+All downloads are organized in a consistent structure:
 
 ```
 downloads/
-├── solo-leveling/
-│   ├── cover.webp              ← Cover image
-│   ├── chapter_1/
-│   │   ├── 000.webp
+├── solo-leveling/              # Series folder (slug-based)
+│   ├── cover.webp             # Cover image
+│   ├── chapter_1/             # Chapter folders (1-based)
+│   │   ├── 000.webp          # Page images (0-based)
 │   │   ├── 001.webp
 │   │   └── ...
 │   ├── chapter_2/
-│   │   ├── 000.webp
-│   │   ├── 001.webp
-│   │   └── ...
 │   └── ...
-├── tower-of-god/
-│   ├── cover.jpg
-│   ├── chapter_1/
-│   └── ...
-└── ...
+└── another-series/
+    └── ...
 ```
 
-## 🔧 Technical Implementation
+## 🌟 Key Features
 
-### Clean Architecture Overview
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   main.go       │───▶│   scraper.go     │───▶│ workerpool.go   │
-│   (CLI & Config)│    │ (Core Logic)     │    │ (Concurrency)   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   headers.go    │◀───│   fetcher.go     │───▶│   types.go      │
-│ (Header Mgmt)   │    │ (HTTP Layer)     │    │ (Data Structs)  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                │
-                                ▼
-                       ┌──────────────────┐
-                       │   utils.go       │
-                       │ (Logging & Utils)│
-                       └──────────────────┘
-```
+### 🏛️ **Modular Architecture**
+- **Clean interfaces**: Common `SiteScraper` interface for all adapters
+- **Site-specific optimizations**: Each adapter handles site quirks perfectly
+- **Easy extensibility**: Add new sites without affecting existing ones
+- **Comprehensive documentation**: Detailed docs for each adapter
 
-### Modular File Structure
-- **`main.go`** (131 lines) - CLI interface and configuration
-- **`scraper.go`** (573 lines) - Core scraping logic and orchestration  
-- **`fetcher.go`** (31 lines) - HTTP abstraction layer
-- **`headers.go`** (91 lines) - Professional request header management
-- **`workerpool.go`** (22 lines) - Concurrency management and worker pools
-- **`types.go`** (45 lines) - Data structures and configuration types
-- **`utils.go`** (66 lines) - Utility functions and structured logging
+### ⚡ **High Performance**
+- **Parallel processing**: Concurrent downloads at series, chapter, and image levels
+- **Smart worker pools**: Configurable concurrency for optimal performance
+- **Rate limiting**: Server-friendly request patterns
+- **Automatic retry**: Exponential backoff for failed requests
 
-### Hash Discovery Pipeline
-1. **Direct Pattern Matching**: Search for CDN URLs in HTML content
-2. **Escaped JSON Extraction**: Parse escaped JSON in JavaScript blocks
-3. **Script Tag Analysis**: Extract from embedded script data
-4. **HID-Based Guessing**: Generate hash variations from chapter HID
-5. **Validation Testing**: Verify hash by attempting actual image download
+### 🛡️ **Robust Error Handling**
+- **Graceful failures**: Continues processing when individual items fail
+- **Smart termination**: Stops after consecutive 404s
+- **Comprehensive logging**: Debug, info, warn, and error levels
+- **Recovery strategies**: Built-in retry logic with exponential backoff
 
-### Concurrency Strategy
-```
-Page Discovery (100 parallel) ← Ultra-fast manhwa list building
-    ↓
-Manhwa Processing (10 concurrent) ← Balanced resource usage
-    ↓
-Chapter Processing (5 per manhwa) ← Server-friendly processing
-    ↓
-Image Downloads (20-50 configurable) ← User-customizable speed
-```
+### 🔍 **Site-Specific Optimizations**
 
-## 🚨 Performance Considerations
+#### Comick.live (`-site=comick`)
+- ✅ **API-based**: Fast and reliable data access
+- ✅ **Advanced hash discovery**: Multiple fallback strategies
+- ✅ **Pagination support**: Handles large chapter lists
+- ✅ **Bulk operations**: `after-id` mode for selective downloads
 
-### Recommended Settings by Use Case
+#### AsuraComic.net (`-site=asura`)  
+- ✅ **HTML parsing**: Robust pattern matching
+- ✅ **CDN optimization**: Direct access to image CDN
+- ✅ **Sequential discovery**: Smart chapter enumeration
+- ✅ **Cover extraction**: Automatic cover image downloading
 
-**Single Manhwa Download:**
+## 📚 Detailed Documentation
+
+Each adapter has comprehensive documentation covering:
+
+### 🔷 [Comick.live Adapter](adapters/comick/README.md)
+- API endpoints and response formats
+- Hash discovery algorithms  
+- Performance benchmarks
+- Troubleshooting guide
+- Technical implementation details
+
+### 🔷 [AsuraComic.net Adapter](adapters/asura/README.md)
+- HTML parsing strategies
+- URL pattern matching
+- Site-specific optimizations
+- Error handling approaches
+- Development notes
+
+## ⚡ Performance Guide
+
+### Recommended Configurations
+
+| Use Case | Command | Workers | Notes |
+|----------|---------|---------|-------|
+| **Single Series** | `./scraper -site=comick -mode=slug -slug=series` | 25-30 | Fast, reliable |
+| **🌐 Multi-Site Series** | `./scraper -site=all -mode=slug -slug=series` | **30-35** | **2x speed!** |
+| **Bulk Download** | `./scraper -site=comick -mode=after-id -start-id=1000` | 35-40 | High throughput |
+| **🌐 Multi-Site Full** | `./scraper -site=all -mode=full` | **35-40** | **Maximum throughput** |
+| **Full Site** | `./scraper -site=asura -mode=full` | 25-30 | Respectful load |
+| **Conservative** | `./scraper -site=* -mode=* -workers=15` | 15 | Slow connections |
+
+### Performance Characteristics
+
+| Site | Series Discovery | Chapter Processing | Image Downloads | Avg Speed |
+|------|-----------------|-------------------|-----------------|-----------|
+| **Comick** | 100 pages parallel | API-based, fast | Hash discovery | ⭐⭐⭐⭐⭐ |
+| **Asura** | 20 pages parallel | Sequential, reliable | Direct CDN | ⭐⭐⭐⭐ |
+| **🌐 Multi-Site** | **CONCURRENT** | **SIMULTANEOUS** | **PARALLEL** | **⭐⭐⭐⭐⭐⭐** |
+
+## 🔨 Adding New Sites
+
+The modular architecture makes adding new sites straightforward:
+
+### 1. Create Adapter Structure
 ```bash
-./comick-scraper -mode=slug -slug=your-manhwa -workers=30 -log=info
+mkdir -p adapters/newsite
 ```
 
-**Bulk Download (Fast Connection):**
+### 2. Implement the Interface
+```go
+// newsite_adapter.go
+type NewSiteAdapter struct {
+    // ... implementation
+}
+
+func (n *NewSiteAdapter) DownloadAll() error { /* ... */ }
+func (n *NewSiteAdapter) DownloadBySlug(slug string) error { /* ... */ }
+func (n *NewSiteAdapter) GetSiteName() string { return "newsite" }
+```
+
+### 3. Register in Main
+```go
+// main.go
+case "newsite":
+    scraper = NewNewSiteAdapter(config)
+```
+
+### 4. Create Documentation
 ```bash
-./comick-scraper -mode=after-id -start-id=1000 -workers=45 -log=info
+# adapters/newsite/README.md
+# Detailed adapter documentation
 ```
 
-**Bulk Download (Moderate Connection):**
-```bash
-./comick-scraper -mode=after-id -start-id=1000 -workers=25 -log=info
-```
-
-**Full Database (Overnight Run):**
-```bash
-./comick-scraper -mode=full -workers=35 -log=info
-```
-
-### System Requirements
-
-| Operation | RAM Usage | Disk I/O | Network | Duration |
-|-----------|-----------|----------|---------|----------|
-| Single Manhwa | ~50MB | Low | Medium | 2-5 min |
-| Bulk Download (100) | ~200MB | High | High | 15-25 min |
-| Bulk Download (500) | ~300MB | High | High | 45-75 min |
-| Full Database (~3800) | ~500MB | Very High | Very High | 45-90 min |
-
-## 🛠️ Troubleshooting
+## 🐛 Troubleshooting
 
 ### Common Issues
 
-**"Too many open files" error:**
+**Build Problems:**
 ```bash
-# Reduce worker count
-./comick-scraper -mode=slug -slug=your-manhwa -workers=15
-```
-
-**Server rate limiting or ENHANCE_YOUR_CALM errors:**
-```bash
-# The scraper has built-in rate limiting, but you can reduce workers
-./comick-scraper -mode=slug -slug=your-manhwa -workers=15 -log=info
-```
-
-**Hash discovery failures:**
-```bash
-# Enable debug logging to see detailed extraction process
-./comick-scraper -mode=slug -slug=your-manhwa -log=debug
-```
-
-**Network timeouts or connection issues:**
-```bash
-# The scraper has built-in retry logic, but try reducing concurrent workers
-./comick-scraper -mode=slug -slug=your-manhwa -workers=20 -log=info
-```
-
-**Build failures:**
-```bash
-# Ensure Go 1.21+ is installed
-go version
-
 # Clean build
-rm -f comick-scraper
-go build -o comick-scraper *.go
+rm -f scraper
+./build.sh
 ```
 
-### Finding Manhwa Slugs
-
-Visit comick.live and navigate to any manhwa. The slug is the last part of the URL:
-- `https://comick.live/comic/solo-leveling` → slug: `solo-leveling`
-- `https://comick.live/comic/tower-of-god` → slug: `tower-of-god`
-- `https://comick.live/comic/one-piece` → slug: `one-piece`
-
-### Debug Mode Output Example
-```
-2025/09/17 16:29:40 [INFO] Starting download for manhwa: solo-leveling
-2025/09/17 16:29:40 [INFO] Fetching chapter list for solo-leveling (checking for pagination)...
-2025/09/17 16:29:42 [DEBUG] Page 0: found 52 English chapters (total: 52)
-2025/09/17 16:29:45 [DEBUG] Found hash via direct pattern: fd6b6682
-2025/09/17 16:29:45 [DEBUG] Starting download for chapter 1...
+**Network Issues:**
+```bash
+# Reduce workers and enable debug logging
+./scraper -site=comick -mode=slug -slug=test -workers=15 -log=debug
 ```
 
-## 📊 Performance Benchmarks
+**Site-Specific Issues:**
+- **Comick**: Check [Comick troubleshooting](adapters/comick/README.md#troubleshooting)
+- **Asura**: Check [Asura troubleshooting](adapters/asura/README.md#troubleshooting)
 
-Based on extensive testing with various configurations:
+### Finding Series Slugs
 
-| Mode | Manhwas | Avg Time | Workers | Peak RAM | Notes |
-|------|---------|----------|---------|----------|-------|
-| Single | 1 | 2-5 min | 30 | 50MB | Depends on chapter count |
-| After ID | 100 | 15-25 min | 35 | 200MB | ~50 chapters each |
-| After ID | 500 | 45-75 min | 40 | 300MB | Mixed chapter counts |
-| Full DB | ~3800 | 45-90 min | 35-40 | 500MB | Depends on server load |
+#### Comick.live
+- URL: `https://comick.live/comic/solo-leveling`
+- Slug: `solo-leveling`
 
-### Speed Comparison
-- **Old monolithic version**: ~90 minutes for 500 manhwas
-- **New modular version**: ~60 minutes for 500 manhwas  
-- **Improvement**: ~33% faster with better reliability
+#### AsuraComic.net  
+- URL: `https://asuracomic.net/series/reaper-of-the-drifting-moon-4e28152d`
+- Slug: `reaper-of-the-drifting-moon-4e28152d` (includes HID)
+
+## 📈 Future Roadmap
+
+### Planned Features
+- [ ] **Database integration** for download tracking
+- [ ] **Resume capability** for interrupted downloads
+- [ ] **Web UI** for management and monitoring
+- [ ] **Docker containerization** for easy deployment
+- [ ] **Advanced filtering** by genre, status, date ranges
+- [ ] **Quality selection** for different image sizes
+
+### Potential New Sites
+- [ ] **MangaDex** adapter
+- [ ] **Webtoons** adapter  
+- [ ] **MangaKakalot** adapter
+- [ ] **Community-requested sites**
 
 ## ⚖️ Legal & Ethical Usage
 
-- **Educational purposes only** - This tool is for learning about web scraping and Go programming
-- **Respect server resources** - Built-in rate limiting prevents server overload  
-- **Follow terms of service** - Check comick.live's ToS before use
-- **Personal use recommended** - Not intended for commercial redistribution
-- **Server-friendly design** - Implements respectful request patterns and retry logic
+### Guidelines
+- ✅ **Educational purposes** - Learn about web scraping and Go programming
+- ✅ **Personal use** - Download for your own reading
+- ✅ **Respectful scraping** - Built-in rate limiting and server-friendly patterns
+- ✅ **Terms compliance** - Follow each site's terms of service
+
+### Built-in Protections
+- **Rate limiting**: Prevents server overload
+- **Retry logic**: Handles temporary issues gracefully  
+- **Error recovery**: Continues processing despite individual failures
+- **Logging**: Comprehensive debugging without exposing sensitive data
 
 ## 🤝 Contributing
 
-The codebase is designed for maximum maintainability and extensibility:
-
 ### Code Quality Standards
-- **Clean Architecture**: Strict separation of concerns
-- **Interface-based Design**: Easy testing and mocking
-- **Comprehensive Error Handling**: Graceful failure recovery
-- **Structured Logging**: Professional monitoring capabilities
-- **Zero Technical Debt**: No unused files or legacy code
-
-### Extension Points
-- **New header strategies** in `HeaderManager`
-- **Alternative hash discovery** methods in `getChapterImageHashAdvanced`
-- **Different retry policies** in download functions
-- **Additional logging systems** in utils
-- **New fetcher implementations** for different HTTP strategies
+- **Clean architecture**: Modular, testable, maintainable
+- **Comprehensive docs**: Each adapter thoroughly documented
+- **Error handling**: Graceful failure recovery
+- **Performance**: Optimized for speed and efficiency
 
 ### Development Setup
 ```bash
 # Clone and setup
-git clone <repo>
-cd comick-scraper
-
-# Run tests (when implemented)
-go test ./...
+git clone <repository>
+cd scraper
 
 # Build and test
 ./build.sh
-./comick-scraper -h
+./scraper -h
+
+# Test adapters
+./scraper -site=comick -mode=slug -slug=test-series -log=debug
+./scraper -site=asura -mode=slug -slug=test-series -log=debug
 ```
-
-## 📈 Roadmap
-
-**Completed ✅:**
-- [x] Enterprise modular architecture
-- [x] Professional error handling and logging
-- [x] Advanced hash discovery algorithms
-- [x] Parallel processing at all levels
-- [x] Smart retry logic with exponential backoff
-- [x] Clean separation of concerns
-- [x] Zero technical debt codebase
-
-**Planned Enhancements:**
-- [ ] Database integration for progress tracking
-- [ ] Resume capability for interrupted downloads
-- [ ] Multiple manga site support
-- [ ] Advanced filtering options (genre, status, etc.)
-- [ ] Prometheus metrics integration
-- [ ] Docker containerization
-- [ ] Web UI for management and monitoring
-- [ ] Unit and integration test suite
-- [ ] Benchmarking and performance profiling tools
-
-## 🏆 Awards & Recognition
-
-This scraper represents a **professional-grade implementation** featuring:
-- **Enterprise software architecture** with clean interfaces
-- **Maximum performance optimization** with parallel processing
-- **Production-ready reliability** with comprehensive error handling
-- **Zero technical debt** with modular, maintainable code
-- **Professional documentation** with detailed examples and troubleshooting
 
 ---
 
-**Built with ❤️ for the manhwa community**
+## 🏆 Project Highlights
 
-*Combining enterprise software architecture with bleeding-edge performance optimization*
+### 🎯 **Production Ready**
+- Comprehensive error handling and logging
+- Server-friendly rate limiting and retry logic
+- Modular architecture for easy maintenance
+- Extensive documentation for all components
 
-**Architecture**: Clean, Modular, Professional  
-**Performance**: Ultra-fast, Parallel, Optimized  
-**Reliability**: Production-ready, Error-resilient, Server-friendly
+### 🚀 **High Performance**  
+- **🌐 Multi-site concurrent scraping**: Download from all sites simultaneously
+- Parallel processing at all levels
+- Site-specific optimizations
+- Configurable concurrency control
+- Smart resource management
+
+### 📚 **Well Documented**
+- Main project documentation
+- Detailed adapter-specific guides
+- Troubleshooting and performance guides
+- Clear examples and usage patterns
+
+### 🔧 **Extensible Design**
+- Clean interface-based architecture
+- Easy to add new sites
+- Modular components
+- Future-proof design patterns
+
+---
+
+**Built with ❤️ for the manga/manhwa community**
+
+*Combining enterprise architecture with bleeding-edge performance*
+
+**🌐 Concurrent Multi-Site** • **⚡ High-Performance** • **📚 Well-Documented** • **🔧 Extensible**
