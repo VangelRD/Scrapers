@@ -2,6 +2,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -73,6 +74,12 @@ type AsuraSeries struct {
 	HID      string
 }
 
+// AsuraPage represents a single page/image in a chapter
+type AsuraPage struct {
+	Order int    `json:"order"`
+	URL   string `json:"url"`
+}
+
 // getAllSeries fetches all series from AsuraComic
 func (a *AsuraAdapter) getAllSeries() ([]AsuraSeries, error) {
 	var allSeries []AsuraSeries
@@ -119,30 +126,46 @@ func (a *AsuraAdapter) getAllSeries() ([]AsuraSeries, error) {
 // parseSeriesFromHTML extracts series from HTML
 func (a *AsuraAdapter) parseSeriesFromHTML(html string) []AsuraSeries {
 	var series []AsuraSeries
+	seen := make(map[string]bool) // Avoid duplicates
 
 	// Find all series links: <a href="series/[SLUG]-[HID]">
-	re := regexp.MustCompile(`<a href="series/([^"]+)">`)
+	// More specific pattern to match only series links
+	re := regexp.MustCompile(`<a[^>]+href=["']series/([^"']+)["'][^>]*>`)
 	matches := re.FindAllStringSubmatch(html, -1)
+
+	LogDebug(fmt.Sprintf("Found %d potential series links", len(matches)))
 
 	for _, match := range matches {
 		if len(match) > 1 {
 			fullSlug := match[1]
 
+			// Skip if we've already seen this slug
+			if seen[fullSlug] {
+				continue
+			}
+			seen[fullSlug] = true
+
 			// Extract title and HID from slug
 			lastDashIdx := strings.LastIndex(fullSlug, "-")
-			if lastDashIdx > 0 {
-				title := fullSlug[:lastDashIdx]
+			if lastDashIdx > 0 && lastDashIdx < len(fullSlug)-1 {
+				title := strings.ReplaceAll(fullSlug[:lastDashIdx], "-", " ")
+				title = strings.Title(strings.ToLower(title))
 				hid := fullSlug[lastDashIdx+1:]
 
-				series = append(series, AsuraSeries{
-					Slug:  fullSlug,
-					Title: title,
-					HID:   hid,
-				})
+				// Validate HID format (should be alphanumeric)
+				if IsAlphaNumeric(hid) && len(hid) >= 8 {
+					series = append(series, AsuraSeries{
+						Slug:  fullSlug,
+						Title: title,
+						HID:   hid,
+					})
+					LogDebug(fmt.Sprintf("Added series: %s (slug: %s, hid: %s)", title, fullSlug, hid))
+				}
 			}
 		}
 	}
 
+	LogDebug(fmt.Sprintf("Parsed %d unique series from HTML", len(series)))
 	return series
 }
 
@@ -206,78 +229,86 @@ func (a *AsuraAdapter) downloadSeries(series AsuraSeries) error {
 
 // extractCoverURL finds the cover image URL from series page
 func (a *AsuraAdapter) extractCoverURL(html string) string {
-	// Look for /media/N/[random].webp pattern (not -optimized or -thumbnail)
-	re := regexp.MustCompile(`/media/\d+/[^"'\s]+\.webp`)
+	// Look for cover image URLs - they're usually in gg.asuracomic.net and NOT -optimized or -thumbnail
+	re := regexp.MustCompile(`https://gg\.asuracomic\.net/storage/media/\d+/[^"'\s]+\.webp`)
 	matches := re.FindAllString(html, -1)
 
 	for _, match := range matches {
-		// Skip optimized and thumbnail versions
+		// Skip optimized, thumbnail, and conversion versions - we want the original
 		if !strings.Contains(match, "-optimized") &&
 			!strings.Contains(match, "-thumbnail") &&
-			!strings.Contains(match, "-small") {
-			// Return full URL
-			if strings.HasPrefix(match, "http") {
-				return match
-			}
-			return a.baseURL + match
+			!strings.Contains(match, "-small") &&
+			!strings.Contains(match, "/conversions/") {
+			LogDebug(fmt.Sprintf("Found cover URL: %s", match))
+			return match
 		}
 	}
 
+	// Fallback: look for any media URL that's not in conversions folder
+	re2 := regexp.MustCompile(`https://gg\.asuracomic\.net/storage/media/\d+/[^/]+\.webp`)
+	matches2 := re2.FindAllString(html, -1)
+	
+	for _, match := range matches2 {
+		if !strings.Contains(match, "/conversions/") {
+			LogDebug(fmt.Sprintf("Found fallback cover URL: %s", match))
+			return match
+		}
+	}
+
+	LogDebug("No cover URL found")
 	return ""
 }
 
-// downloadChapters downloads all chapters for a series
+// downloadChapters downloads all chapters for a series sequentially to properly detect 404s
 func (a *AsuraAdapter) downloadChapters(series AsuraSeries) error {
-	var wg sync.WaitGroup
 	consecutive404s := 0
 	chapterNum := 0
+	completed := 0
+
+	LogInfo(fmt.Sprintf("[%s] Starting chapter discovery from chapter 0...", series.Title))
 
 	for {
 		// Check for 3 consecutive 404s
 		if consecutive404s >= 3 {
-			LogInfo(fmt.Sprintf("Stopped after 3 consecutive 404s for %s", series.Title))
+			LogInfo(fmt.Sprintf("[%s] Stopped after 3 consecutive 404s", series.Title))
 			break
 		}
 
-		wg.Add(1)
-		chNum := chapterNum
+		// Download chapter sequentially for proper 404 detection
+		err := a.downloadChapter(series, chapterNum)
 
-		go func(num int) {
-			defer wg.Done()
-
-			a.chapterPool.Acquire()
-			defer a.chapterPool.Release()
-
-			err := a.downloadChapter(series, num)
-			if err != nil {
-				if strings.Contains(err.Error(), "404") {
-					consecutive404s++
-				}
-				LogDebug(fmt.Sprintf("Chapter %d failed: %v", num, err))
+		if err != nil {
+			if strings.Contains(err.Error(), "404") {
+				consecutive404s++
+				LogDebug(fmt.Sprintf("[%s] Chapter %d: 404 (%d consecutive)", series.Title, chapterNum, consecutive404s))
 			} else {
-				consecutive404s = 0 // Reset on success
-				LogInfo(fmt.Sprintf("[%s] Chapter %d completed", series.Title, num))
+				LogDebug(fmt.Sprintf("[%s] Chapter %d failed: %v", series.Title, chapterNum, err))
+				// For non-404 errors, continue but don't reset the counter
 			}
-		}(chNum)
+		} else {
+			consecutive404s = 0 // Reset on success
+			completed++
+			LogInfo(fmt.Sprintf("[%s] Chapter %d completed successfully", series.Title, chapterNum))
+		}
 
 		chapterNum++
 
-		// Wait for batch to complete before checking 404s
-		if chapterNum%5 == 0 {
-			wg.Wait()
-			if consecutive404s >= 3 {
-				break
-			}
-		}
-
 		// Safety limit
 		if chapterNum > 500 {
-			LogWarn(fmt.Sprintf("Reached safety limit of 500 chapters for %s", series.Title))
+			LogWarn(fmt.Sprintf("[%s] Reached safety limit of 500 chapters", series.Title))
 			break
 		}
+
+		// Small delay between chapter requests to be respectful
+		time.Sleep(100 * time.Millisecond)
 	}
 
-	wg.Wait()
+	if completed > 0 {
+		LogInfo(fmt.Sprintf("[%s] Successfully downloaded %d chapters", series.Title, completed))
+	} else {
+		LogWarn(fmt.Sprintf("[%s] No chapters were downloaded", series.Title))
+	}
+
 	return nil
 }
 
@@ -303,10 +334,10 @@ func (a *AsuraAdapter) downloadChapter(series AsuraSeries, chapterNum int) error
 
 	html := string(body)
 
-	// Extract image base path
-	imagePath := a.extractImagePath(html)
-	if imagePath == "" {
-		return fmt.Errorf("no image path found for chapter %d", chapterNum)
+	// Extract all image URLs from the JSON data
+	imageURLs := a.extractImageURLs(html)
+	if len(imageURLs) == 0 {
+		return fmt.Errorf("no images found for chapter %d", chapterNum)
 	}
 
 	// Create chapter directory (use 1-based for consistency with output)
@@ -316,77 +347,126 @@ func (a *AsuraAdapter) downloadChapter(series AsuraSeries, chapterNum int) error
 		return err
 	}
 
-	// Download images
-	return a.downloadChapterImages(imagePath, chapterDir)
+	// Download images using the extracted URLs
+	return a.downloadChapterImagesFromURLs(imageURLs, chapterDir)
 }
 
-// extractImagePath extracts the base image path from chapter HTML
-func (a *AsuraAdapter) extractImagePath(html string) string {
-	// Look for pattern: gg.asuracomic.net/storage/media/[random]/conversions/0N-optimized.webp
-	// Extract the [random] part
-	re := regexp.MustCompile(`gg\.asuracomic\.net/storage/media/(\d+)/conversions/0\d+-optimized\.webp`)
+// extractImageURLs extracts all image URLs from the chapter HTML using multiple methods
+func (a *AsuraAdapter) extractImageURLs(html string) []string {
+	// Method 1: Try to extract from JSON pages array
+	urls := a.extractFromPagesJSON(html)
+	if len(urls) > 0 {
+		LogDebug(fmt.Sprintf("Method 1 (JSON): Extracted %d image URLs", len(urls)))
+		return urls
+	}
+
+	// Method 2: Extract all image URLs directly from HTML
+	urls = a.extractDirectImageURLs(html)
+	if len(urls) > 0 {
+		LogDebug(fmt.Sprintf("Method 2 (Direct): Extracted %d image URLs", len(urls)))
+		return urls
+	}
+
+	LogDebug("No image URLs found using any method")
+	return nil
+}
+
+// extractFromPagesJSON extracts URLs from the pages JSON array
+func (a *AsuraAdapter) extractFromPagesJSON(html string) []string {
+	// Look for the pages JSON array: "pages":[{"order":1,"url":"..."}...]
+	re := regexp.MustCompile(`"pages":\s*\[(.*?)\]`)
 	matches := re.FindStringSubmatch(html)
 
-	if len(matches) > 1 {
-		return matches[1]
+	if len(matches) < 2 {
+		return nil
 	}
 
-	// Try without domain
-	re = regexp.MustCompile(`/storage/media/(\d+)/conversions/0\d+-optimized\.webp`)
-	matches = re.FindStringSubmatch(html)
+	pagesJSON := "[" + matches[1] + "]"
+	LogDebug(fmt.Sprintf("Found pages JSON: %s", pagesJSON[:min(200, len(pagesJSON))]))
 
-	if len(matches) > 1 {
-		return matches[1]
+	var pages []AsuraPage
+	if err := json.Unmarshal([]byte(pagesJSON), &pages); err != nil {
+		LogDebug(fmt.Sprintf("Failed to parse pages JSON: %v", err))
+		return nil
 	}
 
-	return ""
+	var urls []string
+	for _, page := range pages {
+		if page.URL != "" {
+			urls = append(urls, page.URL)
+		}
+	}
+
+	return urls
 }
 
-// downloadChapterImages downloads all images for a chapter
-func (a *AsuraAdapter) downloadChapterImages(mediaPath, chapterDir string) error {
-	consecutive404s := 0
-	imageNum := 1 // AsuraComic images start from 01
-	downloadedCount := 0
+// extractDirectImageURLs extracts image URLs directly by finding all optimized.webp URLs
+func (a *AsuraAdapter) extractDirectImageURLs(html string) []string {
+	// Find all optimized.webp URLs in order
+	re := regexp.MustCompile(`https://gg\.asuracomic\.net/storage/media/\d+/conversions/\d+-optimized\.webp`)
+	matches := re.FindAllString(html, -1)
 
-	for {
-		if consecutive404s >= 3 {
-			LogDebug(fmt.Sprintf("Stopped after 3 consecutive 404s. Downloaded %d images", downloadedCount))
-			break
-		}
-
-		// Format: 01-optimized.webp, 02-optimized.webp, etc.
-		imageURL := fmt.Sprintf("%s/storage/media/%s/conversions/%02d-optimized.webp",
-			a.cdnURL, mediaPath, imageNum)
-
-		// Save as 000.webp, 001.webp for consistency
-		imagePath := filepath.Join(chapterDir, fmt.Sprintf("%03d.webp", imageNum-1))
-
-		time.Sleep(50 * time.Millisecond) // Rate limiting
-
-		err := DownloadFile(imageURL, imagePath, a.getImageHeaders(), a.fetcher, a.config)
-		if err != nil {
-			if strings.Contains(err.Error(), "404") {
-				consecutive404s++
-			}
-			LogDebug(fmt.Sprintf("Image %d failed: %v", imageNum, err))
-		} else {
-			consecutive404s = 0
-			downloadedCount++
-		}
-
-		imageNum++
-
-		// Safety limit
-		if imageNum > 200 {
-			LogWarn("Reached safety limit of 200 images per chapter")
-			break
+	// Remove duplicates while preserving order
+	seen := make(map[string]bool)
+	var urls []string
+	
+	for _, url := range matches {
+		if !seen[url] {
+			seen[url] = true
+			urls = append(urls, url)
 		}
 	}
+
+	return urls
+}
+
+// min returns the smaller of two integers
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// downloadChapterImagesFromURLs downloads images from a list of direct URLs
+func (a *AsuraAdapter) downloadChapterImagesFromURLs(imageURLs []string, chapterDir string) error {
+	downloadedCount := 0
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+
+	for i, imageURL := range imageURLs {
+		wg.Add(1)
+		go func(index int, url string) {
+			defer wg.Done()
+
+			a.imagePool.Acquire()
+			defer a.imagePool.Release()
+
+			// Save as 000.webp, 001.webp for consistency
+			imagePath := filepath.Join(chapterDir, fmt.Sprintf("%03d.webp", index))
+
+			time.Sleep(time.Duration(index*50) * time.Millisecond) // Stagger requests
+
+			err := DownloadFile(url, imagePath, a.getImageHeaders(), a.fetcher, a.config)
+
+			mu.Lock()
+			if err != nil {
+				LogDebug(fmt.Sprintf("Image %d failed: %v", index+1, err))
+			} else {
+				downloadedCount++
+				LogDebug(fmt.Sprintf("Downloaded image %d/%d", index+1, len(imageURLs)))
+			}
+			mu.Unlock()
+		}(i, imageURL)
+	}
+
+	wg.Wait()
 
 	if downloadedCount == 0 {
 		return fmt.Errorf("no images downloaded")
 	}
 
+	LogDebug(fmt.Sprintf("Successfully downloaded %d/%d images", downloadedCount, len(imageURLs)))
 	return nil
 }
 
